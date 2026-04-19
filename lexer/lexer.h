@@ -6,6 +6,8 @@
 #define COMPILER_LEXER_H
 
 #include <string>
+#include <optional>
+#include <istream>
 
 /**
  * keywords for tokens
@@ -73,7 +75,6 @@ typedef struct
     std::string value;
 } Token;
 
-#include <istream>
 
 /**
  * Lexer is implemented with a greedy algorithm, that means,

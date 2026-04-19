@@ -5,6 +5,7 @@
 #ifndef COMPILER_PARSER_H
 #define COMPILER_PARSER_H
 #include "../lexer/lexer.h"
+#include <vector>
 
 class Parser {
     public:

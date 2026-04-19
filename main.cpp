@@ -1,7 +1,7 @@
-#include "lexer/lexer.h"
 #include <iostream>
 #include <string>
 #include <fstream>
+#include "lexer/lexer.h"
 #include "parser/parser.h"
 
 std::string FILE_NAME = "../program.dd";
@@ -19,9 +19,10 @@ int main() {
     Parser parser(lexer);
     try {
         parser.createTree();
-    } catch (...) {
-        std::cerr << "ann error has happened" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
+    std::cout << "program has parsed successfully" << std::endl;
     return 0;
 }

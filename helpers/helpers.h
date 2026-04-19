@@ -13,8 +13,10 @@ std::string getTokenTypeName(int index);
 void printTokenObject(const Token& token);
 
 template<typename T>
-bool includes(const std::vector<T>& vec, const T& value);
-inline std::vector<TokenTypeEnum> baseTypesVector = {F64_KW, U8_KW, I32_KW, VOID_KW};
+bool includes(const std::vector<T>& vec, const T& value) {
+    return std::find(vec.begin(), vec.end(), value) != vec.end();
+}
+inline std::vector baseTypesVector = {F64_KW, U8_KW, I32_KW, VOID_KW};
 
 
 #endif //COMPILER_HELPERS_H

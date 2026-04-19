@@ -74,8 +74,3 @@ std::string getTokenTypeName(const int index)
 void printTokenObject(const Token& token) {
     std::cout << "{type:" + getTokenTypeName(token.type) + " value:" + token.value + "}" << std::endl;
 }
-
-template<typename T>
-bool includes(const std::vector<T>& vec, const T& value) {
-    return std::find(vec.begin(), vec.end(), value) != vec.end();
-}

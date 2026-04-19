@@ -15,62 +15,27 @@ int Parser::processToken(Token &token) {
     return 0;
 }
 
-void Parser::processExpression(){}
+//TODO: make expression parsing with precedence analysis
+void Parser::processExpression() {
 
-//TOOD: fix tuto, ze ono to musi vratit aj ten token naspat
+}
+
 void Parser::processImport() {
-    Token token;
-    lexer.getToken(token);
-    if (token.type != TokenTypeEnum::CONST_KW) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::IDENTIFIER) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::EQ) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::AT_IMPORT) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::LEFT_PAREN) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::STRING) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::RIGHT_PAREN) {
-        return;
-    }
-
-    lexer.getToken(token);
-    if (token.type == TokenTypeEnum::SEMICOLON) {
-        return;
-    }
+    //for now, we demand the import of the core library for every program
+    expectToken(CONST_KW);
+    expectToken(IDENTIFIER);
+    expectToken(EQ);
+    expectToken(AT_IMPORT);
+    expectToken(LEFT_PAREN);
+    expectToken(STRING);
+    expectToken(RIGHT_PAREN);
+    expectToken(SEMICOLON);
 }
 
 void Parser::processEndOfFile() {
-    Token token;
-    lexer.getToken(token);
-
-    if (token.type == TokenTypeEnum::EOF_KW) {
-        return;
-    }else {
-        throw std::runtime_error("Lexer::processEndOfFile()");
-    }
+   expectToken({EOF_KW});
 }
+
 //
 // void Parser::processParameter() {
 //     expectToken(IDENTIFIER);
@@ -101,7 +66,7 @@ void Parser::processReturnType() {
         lexer.getToken(token);
     }
     //parse base type
-    if (isMatching(baseTypesVector), true) {
+    if (isMatching(baseTypesVector)) {
         lexer.getToken(token);
     }
 }
@@ -130,14 +95,12 @@ void Parser::processDeclarationStatement() {
 }
 
 void Parser::processAssignOrCallStatement() {
-    Token token;
-    expectToken(IDENTIFIER);
-
     // AssignOrCallTail
     if (isMatching({EQ})) {
         Token token;
         lexer.getToken(token);
         processExpression();
+        expectToken(SEMICOLON);
     }
     else {
         expectToken(LEFT_PAREN);
@@ -149,12 +112,44 @@ void Parser::processAssignOrCallStatement() {
 }
 
 void Parser::processIfStatement() {
-    
+    expectToken(LEFT_PAREN);
+    processExpression();
+    expectToken(RIGHT_PAREN);
+    processBlock();
+
+    //process else statement
+    if (isMatching({ELSE_KW})) {
+        Token token;
+        lexer.getToken(token);
+        processBlock();
+    }
+    //else epsilon
 }
 
-void Parser::processWhileStatement() {}
+void Parser::processWhileStatement() {
+    expectToken(LEFT_PAREN);
+    processExpression();
+    expectToken(RIGHT_PAREN);
+    processBlock();
+    if (isMatching({ELSE_KW})) {
+        Token token;
+        lexer.getToken(token);
+        processBlock();
+    }
+    //else epsilon
+}
 
-void Parser::processReturnStatement(){}
+void Parser::processReturnStatement() {
+    //returnTail
+    if (isMatching({SEMICOLON})) {
+        Token token;
+        lexer.getToken(token);
+        return;
+    }else {
+        processExpression();
+        expectToken(SEMICOLON);
+    }
+}
 
 
 void Parser::processStatementList() {
@@ -188,12 +183,12 @@ void Parser::processStatementList() {
         processBlock();
         processStatementList();
     }
-
+    else {
+        lexer.returnToken(token);
+    }
 }
 
 void Parser::processBlock() {
-    Token token;
-    lexer.getToken(token);
     expectToken(TokenTypeEnum::LEFT_CURLY_PAREN);
     processStatementList();
     expectToken(TokenTypeEnum::RIGHT_CURLY_PAREN);
@@ -201,6 +196,9 @@ void Parser::processBlock() {
 
 void Parser::processFunctionList() {
     Token token;
+    if (!isMatching({PUB_KW})) {
+        return;
+    }
     expectToken(TokenTypeEnum::PUB_KW);
     expectToken(TokenTypeEnum::FN_KW);
     expectToken(TokenTypeEnum::IDENTIFIER);
@@ -210,6 +208,9 @@ void Parser::processFunctionList() {
     expectToken(TokenTypeEnum::RIGHT_PAREN);
     processReturnType();
     processBlock();
+
+    // recursively call again
+    processFunctionList();
 }
 
 void Parser::expectToken(TokenTypeEnum type) {
@@ -218,7 +219,8 @@ void Parser::expectToken(TokenTypeEnum type) {
     if (token.type == type) {
         return;
     }else {
-        throw std::runtime_error("Lexer::expectToken()");
+        printTokenObject(token);
+        throw std::runtime_error("The expected token " + getTokenTypeName(type) + " was not found");
     }
 }
 

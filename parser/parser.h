@@ -7,26 +7,27 @@
 #include "../lexer/lexer.h"
 #include <vector>
 
+#include "expression_parser/expression_parser.h"
+
 class Parser {
     public:
         Lexer lexer;
-        explicit Parser(const Lexer& lexer) : lexer(lexer) {}
+        ExpressionParser expressionParser;
+        explicit Parser(const Lexer& lexer) : lexer(lexer), expressionParser(lexer) {}
+
         void createTree();
 
     private:
-        int processToken(Token& token);
         /**
-         * Takes next token from Lexer and compares with expected @param type
-         * if not matching, it raises error
+         * Implemented with the strategy of precedence analysis,
+         * so the implementation is not included within the LL grammar
+         * Algorithm is derivated from precedence table
          */
-        void expectToken(TokenTypeEnum type);
+        void processExpression();
         /**
-         * Checks whether the next token from Lexer is matching one of elements expected in @param typeArray,
-         * @param shouldReturnTokenBack if set to false, the token will not be returned
-         * back to the file
-        */
-        bool isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack);
-
+         * Definitions of all functions, that are
+         * architected based on LL grammar
+         */
         void processImport();
         void processFunctionList();
         void processEndOfFile();
@@ -38,11 +39,9 @@ class Parser {
         void processDeclarationStatement();
         void processAssignOrCallStatement();
         void processReturnStatement();
+        void processParameterList();
+        void processParameter();
+        void processArgumentsList();
 
-        /**
-         * Implemented with the strategy of precedence analysis,
-         * so the implementation is not included within the LL grammar
-         */
-        void processExpression();
 };
 #endif //COMPILER_PARSER_H

@@ -13,9 +13,11 @@ int main() {
     std::ifstream file(FILE_NAME);
     if (!file.is_open()) {
         std::cout << "cannot open file" << std::endl;
+        return 1;
     }
     Token token;
     const Lexer lexer(file);
+
     Parser parser(lexer);
     try {
         parser.createTree();

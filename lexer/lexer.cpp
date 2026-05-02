@@ -1,6 +1,6 @@
 #include "lexer.h"
 #include "../errors.h"
-
+#include "../helpers/helpers.h"
 #include <cctype>
 #include <iostream>
 #include <string>
@@ -15,6 +15,34 @@ void Lexer::returnToken(Token& token) {
         throw std::runtime_error("You cannot return token without getToken function");
     }
     unresolvedToken = token;
+}
+
+
+bool Lexer::isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack){
+    Token token;
+    getToken(token);
+    bool is_matching = false;
+    if (includes(typeArray, token.type)) {
+        is_matching = true;
+    }
+    if (shouldReturnTokenBack) {
+        returnToken(token);
+    }
+    return is_matching;
+}
+
+
+void Lexer::expectToken(const std::vector<TokenTypeEnum>& typeArray) {
+    Token token;
+    getToken(token);
+    if (includes(typeArray, token.type)) {
+        return;
+    }else {
+        // Here we are mixing stdout with stderr, mby refactor
+        printTokenObject(token);
+        printVector(typeArray);
+        throw std::runtime_error("Program expected tokens above, but got " + getTokenTypeName(token.type) + " instead");
+    }
 }
 
 int Lexer::getToken(Token& tokenAddress)

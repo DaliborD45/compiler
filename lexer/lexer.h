@@ -63,7 +63,7 @@ typedef enum
     PIPE_SIGN,            // 46
     HASHTAG,              // 47
     NOT_EQ,               // 48
-    IFJ_KW                // 49
+    DOLLAR_SIGN, //49 -> used in the precedence analysis algo
 } TokenTypeEnum;
 
 /**
@@ -75,6 +75,7 @@ typedef struct
     std::string value;
 } Token;
 
+inline Token DOLLAR_TOKEN = {DOLLAR_SIGN, ""};
 
 /**
  * Lexer is implemented with a greedy algorithm, that means,
@@ -88,7 +89,17 @@ public:
     explicit Lexer(std::istream& in);
     int getToken(Token& tokenAddress);
     void returnToken(Token& token);
-
+    /**
+     * Checks whether the next token from Lexer is matching one of elements expected in @param typeArray,
+     * @param shouldReturnTokenBack if set to false, the token will not be returned
+     * back to the file
+    */
+    bool isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack = true);
+    /**
+     * Takes next token from Lexer and compares match with the tokens in @param typeArray
+     * if not matching, it raises error
+     */
+    void expectToken(const std::vector<TokenTypeEnum>& typeArray);
 private:
     std::istream& input;
     //Used, when we are returning token back to the lexer (similar to peek)

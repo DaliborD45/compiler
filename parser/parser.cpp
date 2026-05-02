@@ -3,122 +3,151 @@
 //
 
 #include "parser.h"
-#include <ranges>
+#include <stack>
 #include <iostream>
 #include "../helpers/helpers.h"
+#include "../precedenceAnalysisStack/precedenceAnalysisStack.h"
+#include "../lexer/lexer.h"
 
 
-int Parser::processToken(Token &token) {
-    if (token.type == TokenTypeEnum::COLON) {
-        std::cerr << token.value << std::endl;
-    }
-    return 0;
-}
 
-//TODO: make expression parsing with precedence analysis
 void Parser::processExpression() {
+    lexer.getToken(expressionParser.currentToken);
+    expressionParser.parseExpression(0);
+    //This technique can   be used, only because this language does not support function calls in the expressions
+    // if (isMatching({IDENTIFIER})) {
+    //     lexer.getToken(token);
+    //     if (isMatching({LEFT_PAREN})) {
+    //         lexer.getToken(token);
+    //         processArgumentsList();
+    //         expectToken({RIGHT_PAREN});
+    //         // expectToken({SEMICOLON});
+    //         return;
+    //     }
+    // }
 
+    //No expression to evaluate, just return
+    // if (isMatching({SEMICOLON})) {
+    //     return;
+    // }
+    //
+    // if (token.type != IDENTIFIER) {
+    //     lexer.getToken(token);
+    // }
+    //
+    // PrecAnalysisStack precAnalysisStack;
+    // // for the purposes of algorithm, the $ means the beginning of the expression
+    // precAnalysisStack.push(DOLLAR_TOKEN);
+    //
+    // while (!precAnalysisStack.empty()) {
+    //     Token tokenInStack = precAnalysisStack.getTopTerminal();
+    //     std::string precedence = checkPrecedenceOfTokens(tokenInStack, token);
+    //     //Token that came from lexer has bigger precedence
+    //     if (precedence == "<" or precedence == "=") {
+    //         precAnalysisStack.push(token);
+    //         lexer.getToken(token);
+    //
+    //         //This means that it is not part of the expression, so we just return it and end analysis
+    //         if (!includes(allowedTokenTypes, token.type)) {
+    //             lexer.returnToken(token);
+    //             token = DOLLAR_TOKEN;
+    //         }
+    //
+    //     }
+    //     if (precedence == ">") {
+    //         // do reduction
+    //         precAnalysisStack.reduceStack();
+    //     }
+    //     /**
+    //      * this means comparision of $ with $, that means that the stack should be empty now and loop should end
+    //      * by the logic, on the tokenStack, there should be exactly on AST node covering full expresion
+    //      * or just one non-terminal
+    //      */
+    //     if (precedence == "end") {
+    //         //Here we should do something with our expression in stack
+    //         return;
+    //     }
+    // }
 }
 
 void Parser::processImport() {
     //for now, we demand the import of the core library for every program
-    expectToken(CONST_KW);
-    expectToken(IDENTIFIER);
-    expectToken(EQ);
-    expectToken(AT_IMPORT);
-    expectToken(LEFT_PAREN);
-    expectToken(STRING);
-    expectToken(RIGHT_PAREN);
-    expectToken(SEMICOLON);
+    lexer.expectToken({CONST_KW});
+    lexer.expectToken({IDENTIFIER});
+    lexer.expectToken({EQ});
+    lexer.expectToken({AT_IMPORT});
+    lexer.expectToken({LEFT_PAREN});
+    lexer.expectToken({STRING});
+    lexer.expectToken({RIGHT_PAREN});
+    lexer.expectToken({SEMICOLON});
 }
 
 void Parser::processEndOfFile() {
-   expectToken({EOF_KW});
-}
-
-//
-// void Parser::processParameter() {
-//     expectToken(IDENTIFIER);
-// }
-//
-// void Parser::processParameterList() {
-//     processParameter();
-// }
-
-
-bool Parser::isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack = true){
-    Token token;
-    lexer.getToken(token);
-    bool is_matching = false;
-    if (includes(typeArray, token.type)) {
-        is_matching = true;
-    }
-    if (shouldReturnTokenBack) {
-        lexer.returnToken(token);
-    }
-    return is_matching;
+   lexer.expectToken({EOF_KW});
 }
 
 void Parser::processReturnType() {
     Token token;
     //parse optional type
-    if (isMatching({TokenTypeEnum::QUESTION_MARK})) {
+    if (lexer.isMatching({QUESTION_MARK})) {
         lexer.getToken(token);
     }
     //parse base type
-    if (isMatching(baseTypesVector)) {
+    if (lexer.isMatching(baseTypesVector)) {
         lexer.getToken(token);
     }
 }
 
 
 void Parser::processDeclarationStatement() {
-    expectToken(IDENTIFIER);
+    lexer.expectToken({IDENTIFIER});
     //Process declaration tail
-    if (isMatching({COLON})) {
+    if (lexer.isMatching({COLON})) {
         Token token;
         lexer.getToken(token);
-
-        //TODO: this should be refactored to separate function process type
-        if (isMatching(baseTypesVector)) {
-            lexer.getToken(token);
-        }
-        else {
-            throw std::runtime_error("Lexer::processDeclarationStatement()");
-        }
+        lexer.expectToken(baseTypesVector);
     }
 
     //process after tail
-    expectToken(EQ);
+    lexer.expectToken({EQ});
     processExpression();
-    expectToken(SEMICOLON);
+    // lexer.expectToken({SEMICOLON});
+
+}
+
+//TODO: implement argument list
+void Parser::processArgumentsList() {
+    Token token;
+    processExpression();
+    if (lexer.isMatching({COMMA})) {
+        lexer.getToken(token);
+        processExpression();
+    }
 }
 
 void Parser::processAssignOrCallStatement() {
     // AssignOrCallTail
-    if (isMatching({EQ})) {
+    if (lexer.isMatching({EQ})) {
         Token token;
         lexer.getToken(token);
         processExpression();
-        expectToken(SEMICOLON);
+        // lexer.expectToken({SEMICOLON});
     }
     else {
-        expectToken(LEFT_PAREN);
-        //TODO: implement argument list
-        // processArgList();
-        expectToken(RIGHT_PAREN);
-        expectToken(SEMICOLON);
+        lexer.expectToken({LEFT_PAREN});
+        processArgumentsList();
+        lexer.expectToken({RIGHT_PAREN});
+        lexer.expectToken({SEMICOLON});
     }
 }
 
 void Parser::processIfStatement() {
-    expectToken(LEFT_PAREN);
+    //processExpression is also handling brackets
     processExpression();
-    expectToken(RIGHT_PAREN);
     processBlock();
 
     //process else statement
-    if (isMatching({ELSE_KW})) {
+    if (lexer.isMatching({ELSE_KW})) {
         Token token;
         lexer.getToken(token);
         processBlock();
@@ -127,11 +156,10 @@ void Parser::processIfStatement() {
 }
 
 void Parser::processWhileStatement() {
-    expectToken(LEFT_PAREN);
+    //processExpression is also handling brackets
     processExpression();
-    expectToken(RIGHT_PAREN);
     processBlock();
-    if (isMatching({ELSE_KW})) {
+    if (lexer.isMatching({ELSE_KW})) {
         Token token;
         lexer.getToken(token);
         processBlock();
@@ -141,13 +169,14 @@ void Parser::processWhileStatement() {
 
 void Parser::processReturnStatement() {
     //returnTail
-    if (isMatching({SEMICOLON})) {
+    if (lexer.isMatching({SEMICOLON})) {
         Token token;
         lexer.getToken(token);
         return;
     }else {
         processExpression();
-        expectToken(SEMICOLON);
+        // lexer.expectToken({SEMICOLON});
+
     }
 }
 
@@ -189,39 +218,48 @@ void Parser::processStatementList() {
 }
 
 void Parser::processBlock() {
-    expectToken(TokenTypeEnum::LEFT_CURLY_PAREN);
+    lexer.expectToken({LEFT_CURLY_PAREN});
     processStatementList();
-    expectToken(TokenTypeEnum::RIGHT_CURLY_PAREN);
+    lexer.expectToken({RIGHT_CURLY_PAREN});
+}
+
+
+
+void Parser::processParameter() {
+    lexer.expectToken({IDENTIFIER});
+    lexer.expectToken({COLON});
+    lexer.expectToken(baseTypesVector);
+
+    // parametersTail
+    if (lexer.isMatching({COMMA})) {
+        Token token;
+        lexer.getToken(token);
+        processParameter();
+    }
+}
+
+void Parser::processParameterList() {
+    if (lexer.isMatching({IDENTIFIER})) {
+        processParameter();
+    }
 }
 
 void Parser::processFunctionList() {
     Token token;
-    if (!isMatching({PUB_KW})) {
+    if (!lexer.isMatching({PUB_KW})) {
         return;
     }
-    expectToken(TokenTypeEnum::PUB_KW);
-    expectToken(TokenTypeEnum::FN_KW);
-    expectToken(TokenTypeEnum::IDENTIFIER);
-    expectToken(TokenTypeEnum::LEFT_PAREN);
-    //TODO: add implementation for parameters
-    // processParameterList();
-    expectToken(TokenTypeEnum::RIGHT_PAREN);
+    lexer.expectToken({PUB_KW});
+    lexer.expectToken({FN_KW});
+    lexer.expectToken({IDENTIFIER});
+    lexer.expectToken({LEFT_PAREN});
+    processParameterList();
+    lexer.expectToken({RIGHT_PAREN});
     processReturnType();
     processBlock();
 
     // recursively call again
     processFunctionList();
-}
-
-void Parser::expectToken(TokenTypeEnum type) {
-    Token token;
-    lexer.getToken(token);
-    if (token.type == type) {
-        return;
-    }else {
-        printTokenObject(token);
-        throw std::runtime_error("The expected token " + getTokenTypeName(type) + " was not found");
-    }
 }
 
 
@@ -231,5 +269,7 @@ void Parser::createTree() {
     processFunctionList();
     processEndOfFile();
 }
+
+
 
 

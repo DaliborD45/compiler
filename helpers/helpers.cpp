@@ -5,6 +5,7 @@
 #include "helpers.h"
 #include <iostream>
 #include <string>
+#include <map>
 #include "../lexer/lexer.h"
 
 std::string getTokenTypeName(const int index)
@@ -59,7 +60,7 @@ std::string getTokenTypeName(const int index)
         "PIPE_SIGN",
         "HASHTAG",
         "NOT_EQ",
-        "IFJ_KW"
+        "DOLLAR_SIGN"
     };
 
     int numTokenTypes = sizeof(tokenTypeNames) / sizeof(tokenTypeNames[0]);
@@ -67,10 +68,15 @@ std::string getTokenTypeName(const int index)
     {
         return tokenTypeNames[index];
     }
-    return "Invalid index";
+
+    return "Invalid index" + std::to_string(index);
 }
 
 
 void printTokenObject(const Token& token) {
     std::cout << "{type:" + getTokenTypeName(token.type) + " value:" + token.value + "}" << std::endl;
 }
+
+
+
+

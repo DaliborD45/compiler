@@ -4,9 +4,6 @@
 
 #ifndef COMPILER_EXPRESSION_PARSER_H
 #define COMPILER_EXPRESSION_PARSER_H
-#include <memory>
-#include <vector>
-
 #include "../../lexer/lexer.h"
 
 
@@ -14,11 +11,11 @@
 // --- Parser ---
 class ExpressionParser {
 public:
-    Lexer lexer;
-    Token currentToken;
-    explicit ExpressionParser(const Lexer &lexer): lexer(lexer) {};
+    // Token currentToken;
+    explicit ExpressionParser(Lexer &lexer): lexer(lexer) {};
     void parseExpression(int min_bp);
 private:
+    Lexer& lexer;
     void nud(Token token);
     void parseInfix(Token opToken);
 };

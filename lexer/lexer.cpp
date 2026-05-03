@@ -17,6 +17,9 @@ void Lexer::returnToken(Token& token) {
     unresolvedToken = token;
 }
 
+void Lexer::advance() {
+   getToken(currentToken);
+}
 
 bool Lexer::isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack){
     Token token;
@@ -33,15 +36,14 @@ bool Lexer::isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldR
 
 
 void Lexer::expectToken(const std::vector<TokenTypeEnum>& typeArray) {
-    Token token;
-    getToken(token);
-    if (includes(typeArray, token.type)) {
+    advance();
+    if (includes(typeArray, currentToken.type)) {
         return;
     }else {
         // Here we are mixing stdout with stderr, mby refactor
-        printTokenObject(token);
+        printTokenObject(currentToken);
         printVector(typeArray);
-        throw std::runtime_error("Program expected tokens above, but got " + getTokenTypeName(token.type) + " instead");
+        throw std::runtime_error("Program expected tokens above, but got " + getTokenTypeName(currentToken.type) + " instead");
     }
 }
 
@@ -114,6 +116,7 @@ int Lexer::getToken(Token& tokenAddress)
             tokenAddress = createToken(RIGHT_CURLY_PAREN, "}");
             return 0;
 
+        //TODO: here we have to also make sure we return u8_kw as whole
         case '[':
             tokenAddress = createToken(LEFT_SQUARE_PAREN, "[");
             return 0;

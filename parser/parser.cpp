@@ -3,71 +3,12 @@
 //
 
 #include "parser.h"
-#include <stack>
-#include <iostream>
 #include "../helpers/helpers.h"
-#include "../precedenceAnalysisStack/precedenceAnalysisStack.h"
 #include "../lexer/lexer.h"
 
 
-
 void Parser::processExpression() {
-    lexer.getToken(expressionParser.currentToken);
     expressionParser.parseExpression(0);
-    //This technique can   be used, only because this language does not support function calls in the expressions
-    // if (isMatching({IDENTIFIER})) {
-    //     lexer.getToken(token);
-    //     if (isMatching({LEFT_PAREN})) {
-    //         lexer.getToken(token);
-    //         processArgumentsList();
-    //         expectToken({RIGHT_PAREN});
-    //         // expectToken({SEMICOLON});
-    //         return;
-    //     }
-    // }
-
-    //No expression to evaluate, just return
-    // if (isMatching({SEMICOLON})) {
-    //     return;
-    // }
-    //
-    // if (token.type != IDENTIFIER) {
-    //     lexer.getToken(token);
-    // }
-    //
-    // PrecAnalysisStack precAnalysisStack;
-    // // for the purposes of algorithm, the $ means the beginning of the expression
-    // precAnalysisStack.push(DOLLAR_TOKEN);
-    //
-    // while (!precAnalysisStack.empty()) {
-    //     Token tokenInStack = precAnalysisStack.getTopTerminal();
-    //     std::string precedence = checkPrecedenceOfTokens(tokenInStack, token);
-    //     //Token that came from lexer has bigger precedence
-    //     if (precedence == "<" or precedence == "=") {
-    //         precAnalysisStack.push(token);
-    //         lexer.getToken(token);
-    //
-    //         //This means that it is not part of the expression, so we just return it and end analysis
-    //         if (!includes(allowedTokenTypes, token.type)) {
-    //             lexer.returnToken(token);
-    //             token = DOLLAR_TOKEN;
-    //         }
-    //
-    //     }
-    //     if (precedence == ">") {
-    //         // do reduction
-    //         precAnalysisStack.reduceStack();
-    //     }
-    //     /**
-    //      * this means comparision of $ with $, that means that the stack should be empty now and loop should end
-    //      * by the logic, on the tokenStack, there should be exactly on AST node covering full expresion
-    //      * or just one non-terminal
-    //      */
-    //     if (precedence == "end") {
-    //         //Here we should do something with our expression in stack
-    //         return;
-    //     }
-    // }
 }
 
 void Parser::processImport() {
@@ -87,14 +28,13 @@ void Parser::processEndOfFile() {
 }
 
 void Parser::processReturnType() {
-    Token token;
     //parse optional type
     if (lexer.isMatching({QUESTION_MARK})) {
-        lexer.getToken(token);
+        lexer.advance();
     }
     //parse base type
     if (lexer.isMatching(baseTypesVector)) {
-        lexer.getToken(token);
+        lexer.advance();
     }
 }
 
@@ -103,65 +43,70 @@ void Parser::processDeclarationStatement() {
     lexer.expectToken({IDENTIFIER});
     //Process declaration tail
     if (lexer.isMatching({COLON})) {
-        Token token;
-        lexer.getToken(token);
+        lexer.advance();
         lexer.expectToken(baseTypesVector);
     }
-
     //process after tail
     lexer.expectToken({EQ});
+    lexer.advance();
     processExpression();
-    // lexer.expectToken({SEMICOLON});
 
 }
 
-//TODO: implement argument list
-void Parser::processArgumentsList() {
-    Token token;
-    processExpression();
-    if (lexer.isMatching({COMMA})) {
-        lexer.getToken(token);
-        processExpression();
-    }
-}
 
 void Parser::processAssignOrCallStatement() {
     // AssignOrCallTail
     if (lexer.isMatching({EQ})) {
-        Token token;
-        lexer.getToken(token);
-        processExpression();
-        // lexer.expectToken({SEMICOLON});
+        // We need to skip equal, so first advance will push you to EQ, and second will skip it to the expression
+        lexer.advance();
+        lexer.advance();
     }
-    else {
-        lexer.expectToken({LEFT_PAREN});
-        processArgumentsList();
-        lexer.expectToken({RIGHT_PAREN});
-        lexer.expectToken({SEMICOLON});
-    }
+    processExpression();
+
 }
 
 void Parser::processIfStatement() {
     //processExpression is also handling brackets
+    lexer.advance();
     processExpression();
+    processPipeAfterCondition();
     processBlock();
 
     //process else statement
     if (lexer.isMatching({ELSE_KW})) {
-        Token token;
-        lexer.getToken(token);
+        lexer.advance();
         processBlock();
     }
     //else epsilon
 }
 
+void Parser::processPipeAfterCondition() {
+    if (lexer.isMatching({PIPE_SIGN})) {
+        //for pipe
+        lexer.advance();
+        if (!lexer.isMatching({IDENTIFIER})) {
+            throw std::runtime_error("Identifier after pipe expected");
+        }
+        //for id inside pipe
+        lexer.advance();
+        if (!lexer.isMatching({PIPE_SIGN})) {
+            throw std::logic_error("Expected 'PIPE_SIGN' after 'PIPE_SIGN'");
+        }
+        //for ending pipe sign
+        lexer.advance();
+    }
+}
+
+
 void Parser::processWhileStatement() {
     //processExpression is also handling brackets
+    lexer.advance();
+    //now process just expression
     processExpression();
+    processPipeAfterCondition();
     processBlock();
     if (lexer.isMatching({ELSE_KW})) {
-        Token token;
-        lexer.getToken(token);
+        lexer.advance();
         processBlock();
     }
     //else epsilon
@@ -170,50 +115,44 @@ void Parser::processWhileStatement() {
 void Parser::processReturnStatement() {
     //returnTail
     if (lexer.isMatching({SEMICOLON})) {
-        Token token;
-        lexer.getToken(token);
+        lexer.advance();
         return;
     }else {
+        lexer.advance();
         processExpression();
-        // lexer.expectToken({SEMICOLON});
-
     }
 }
 
 
 void Parser::processStatementList() {
-    Token token;
-    lexer.getToken(token);
-    if (includes({TokenTypeEnum::CONST_KW, TokenTypeEnum::VAR_KW}, token.type)) {
-        // lexer.returnToken(token);
+    lexer.advance();
+    if (includes({TokenTypeEnum::CONST_KW, TokenTypeEnum::VAR_KW}, lexer.currentToken.type)) {
         processDeclarationStatement();
         processStatementList();
     }
-    else if (token.type == TokenTypeEnum::IDENTIFIER) {
-        // lexer.returnToken(token);
+    else if (lexer.currentToken.type == TokenTypeEnum::IDENTIFIER) {
         processAssignOrCallStatement();
         processStatementList();
     }
-    else if (token.type == TokenTypeEnum::IF_KW) {
-        // lexer.returnToken(token);
+    else if (lexer.currentToken.type == TokenTypeEnum::IF_KW) {
         processIfStatement();
         processStatementList();
     }
-    else if (token.type == TokenTypeEnum::WHILE_KW) {
+    else if (lexer.currentToken.type == TokenTypeEnum::WHILE_KW) {
         processWhileStatement();
         processStatementList();
     }
-    else if (token.type == TokenTypeEnum::RETURN_KW) {
+    else if (lexer.currentToken.type == TokenTypeEnum::RETURN_KW) {
         processReturnStatement();
         processStatementList();
     }
-    else if (token.type == TokenTypeEnum::LEFT_CURLY_PAREN) {
-        lexer.returnToken(token);
+    else if (lexer.currentToken.type == TokenTypeEnum::LEFT_CURLY_PAREN) {
+        lexer.returnToken(lexer.currentToken);
         processBlock();
         processStatementList();
     }
     else {
-        lexer.returnToken(token);
+        lexer.returnToken(lexer.currentToken);
     }
 }
 
@@ -232,8 +171,7 @@ void Parser::processParameter() {
 
     // parametersTail
     if (lexer.isMatching({COMMA})) {
-        Token token;
-        lexer.getToken(token);
+        lexer.advance();
         processParameter();
     }
 }
@@ -245,7 +183,6 @@ void Parser::processParameterList() {
 }
 
 void Parser::processFunctionList() {
-    Token token;
     if (!lexer.isMatching({PUB_KW})) {
         return;
     }
@@ -264,7 +201,6 @@ void Parser::processFunctionList() {
 
 
 void Parser::createTree() {
-    Token token;
     processImport();
     processFunctionList();
     processEndOfFile();

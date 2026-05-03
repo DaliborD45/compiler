@@ -6,8 +6,6 @@
 #include "../../parser/parser.h"
 #include "vector"
 #include "../../helpers/helpers.h"
-#include <utility> // std::pair
-
 
 /**
  * INFIX: operator is between operands (*, /, ., (,)
@@ -15,15 +13,25 @@
  */
 
 
-int getPrecedence(TokenTypeEnum type) {
+int getPrecedence(const TokenTypeEnum type) {
     switch (type) {
-        case DOT:    return 40; // Bodka má najvyššiu prioritu
-        case LEFT_PAREN: return 40; // Volanie funkcie má rovnakú prioritu ako bodka
+        case DOT:
+        case LEFT_PAREN: return 40;
+
         case STAR:
-        case SLASH:  return 20; // Násobenie/Delenie
+        case SLASH:  return 20;
+
         case PLUS:
-        case MINUS:  return 10; // Sčítanie/Odčítanie
-        default:     return 0;  // Pre tokeny, ktoré nie sú infixové operátory
+        case MINUS:  return 10;
+
+        case GREATER_THAN_SIGN:
+        case LESS_THAN_SIGN:
+        case GREATER_EQ_THAN_SIGN:
+        case LESS_EQ_THAN_SIGN:
+        case DOUBLE_EQ:
+        case NOT_EQ: return 5;
+
+        default:     return 0;
     }
 }
 std::vector<TokenTypeEnum> operators = {PLUS, MINUS, STAR, SLASH};
@@ -32,17 +40,21 @@ std::vector<TokenTypeEnum> operators = {PLUS, MINUS, STAR, SLASH};
 void ExpressionParser::nud(Token token) {
     switch (token.type) {
         case NUMBER:
+        case STRING:
+        case F64_KW:
+        case I32_KW:
+        case FLOAT:
         case IDENTIFIER:
-            // Sú to literály/premenné, nepotrebujú nič ďalšie. Iba sme ich zjedli.
+        case NULL_KW:
             break;
         case MINUS:
-            // Unárne mínus (napr. -5). Spracujeme pravú stranu s vyššou prioritou.
             parseExpression(25);
             break;
         case LEFT_PAREN:
-            // Zátvorkový výraz: ( 1 + 2 )
-            parseExpression(0); // Vnútri môže byť výraz s akoukoľvek prioritou
-            lexer.expectToken({RIGHT_PAREN});
+            parseExpression(0);
+            if (lexer.currentToken.type != RIGHT_PAREN) {
+                throw std::runtime_error("The ending right paren is missing");
+            }
             break;
         default:
             throw std::runtime_error("Unexpected token as nud " + getTokenTypeName(token.type));
@@ -57,39 +69,39 @@ void ExpressionParser::parseInfix(Token opToken) {
         case MINUS:
         case STAR:
         case SLASH:
-            // Štandardná binárna operácia. Zjeme pravú stranu s prioritou tohto operátora.
+        case GREATER_THAN_SIGN:
+        case LESS_THAN_SIGN:
+        case GREATER_EQ_THAN_SIGN:
+        case LESS_EQ_THAN_SIGN:
+        case DOUBLE_EQ:
+        case NOT_EQ:
             parseExpression(getPrecedence(opToken.type));
             break;
 
         case DOT:
-            // Pristup k vlastnosti: napr. "lavy_vyraz . vlastnost"
-            // Po bodke MUSÍ nasledovať presne jeden identifikátor.
-            if (currentToken.type != IDENTIFIER) {
+            if (lexer.currentToken.type != IDENTIFIER) {
                 throw std::runtime_error("Should be identifier after dot");
             }
-            lexer.getToken(currentToken);
+            lexer.advance();
             break;
 
         case LEFT_PAREN:
-            // Volanie funkcie: napr. "lavy_vyraz ( arg1, arg2 )"
-            // Sme dnu v zátvorkách, parsujeme argumenty oddelené čiarkou
-            if (currentToken.type != RIGHT_PAREN) {
+            if (lexer.currentToken.type != RIGHT_PAREN) {
                 do {
-                    parseExpression(0); // Argument môže byť akýkoľvek výraz
+                    parseExpression(0);
 
-                    if (lexer.isMatching({COMMA})) {
-                        lexer.getToken(currentToken);
+                    if (lexer.currentToken.type == COMMA) {
+                        lexer.advance();
                     } else {
-                        break; // Ak nie je čiarka, musí nasledovať pravá zátvorka
+                        break;
                     }
                 } while (true);
             }
-            //here it is as a right parent
-            lexer.getToken(currentToken);
+            lexer.advance();
             break;
 
         default:
-            throw std::runtime_error("Neznamy infix operator!");
+            throw std::runtime_error("Unknown infix operator");
     }
 }
 
@@ -100,16 +112,13 @@ void ExpressionParser::parseInfix(Token opToken) {
  * Expression parser implementing pratt parsing algorithm
  */
 void ExpressionParser::parseExpression(int precedence = 0) {
-    // 1. Zoberieme prvý token a spracujeme ho ako PREFIX (NUD)
-    Token tokenToProcess = currentToken;
-    lexer.getToken(currentToken); // Posunieme sa na ďalší (lookahead)
+    Token tokenToProcess = lexer.currentToken;
+    lexer.advance();
     nud(tokenToProcess);
 
-    // 2. Kým má aktuálny token VÄČŠIU silu ako naša aktuálna priorita...
-    while (precedence < getPrecedence(currentToken.type)) {
-        const Token opToken = currentToken;
-        lexer.getToken(currentToken);
+    while (precedence < getPrecedence(lexer.currentToken.type)) {
+        const Token opToken = lexer.currentToken;
+        lexer.advance();
         parseInfix(opToken);
     }
-
 }

@@ -15,9 +15,8 @@ int main() {
         std::cout << "cannot open file" << std::endl;
         return 1;
     }
-    Token token;
-    const Lexer lexer(file);
 
+    Lexer lexer(file);
     Parser parser(lexer);
     try {
         parser.createTree();

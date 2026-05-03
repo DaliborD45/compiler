@@ -13,7 +13,7 @@ class Parser {
     public:
         Lexer lexer;
         ExpressionParser expressionParser;
-        explicit Parser(const Lexer& lexer) : lexer(lexer), expressionParser(lexer) {}
+        explicit Parser(Lexer& lexer) : lexer(lexer), expressionParser(this->lexer) {}
 
         void createTree();
 
@@ -41,7 +41,7 @@ class Parser {
         void processReturnStatement();
         void processParameterList();
         void processParameter();
-        void processArgumentsList();
+        void processPipeAfterCondition();
 
 };
 #endif //COMPILER_PARSER_H

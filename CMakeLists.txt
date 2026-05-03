@@ -14,7 +14,5 @@ add_executable(compiler main.cpp
         helpers/helpers.h
         symtable/symtable.cpp
         symtable/symtable.h
-        precedenceAnalysisStack/precedenceAnalysisStack.cpp
-        precedenceAnalysisStack/precedenceAnalysisStack.h
         parser/expression_parser/expression_parser.cpp
         parser/expression_parser/expression_parser.h)

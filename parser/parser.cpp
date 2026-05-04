@@ -8,8 +8,8 @@
 #include "abstract_syntax_tree/abstract_syntax_tree.h"
 
 
-void Parser::processExpression() {
-    expressionParser.parseExpression(0);
+void Parser::processExpression(Expression& expression) {
+    expression = expressionParser.parseExpression(0);
 }
 
 void Parser::processImport() {
@@ -27,7 +27,6 @@ void Parser::processImport() {
 
     //Create node for AST
     programASTNode->imports.push_back(std::make_unique<ImportASTNode>(identifierName, importPath));
-    return;
 }
 
 void Parser::processEndOfFile() {
@@ -49,48 +48,43 @@ ValueType Parser::processReturnType() {
 }
 
 
-void Parser::processDeclarationStatement() {
+void Parser::processDeclarationStatement(std::unique_ptr<DeclarationStatementASTNode>& declarationStatement) {
     lexer.expectToken({IDENTIFIER});
+    declarationStatement->variableName = lexer.currentToken.value;
+
     //Process declaration tail
     if (lexer.isMatching({COLON})) {
         lexer.advance();
         lexer.expectToken(baseTypesVector);
+        declarationStatement->variableType = lexer.currentToken.type;
+    }else {
+        //TODO:implicit typing of the language,
+        declarationStatement->variableType = IDENTIFIER;
     }
+
     //process after tail
     lexer.expectToken({EQ});
     lexer.advance();
-    processExpression();
-
+    processExpression(declarationStatement->expression);
 }
 
 
-void Parser::processAssignOrCallStatement() {
-    // AssignOrCallTail
-    if (lexer.isMatching({EQ})) {
-        // We need to skip equal, so first advance will push you to EQ, and second will skip it to the expression
-        lexer.advance();
-        lexer.advance();
-    }
-    processExpression();
-
-}
-
-void Parser::processIfStatement() {
+void Parser::processIfStatement(std::unique_ptr<IfStatementASTNode>& ifStatement) {
     //processExpression is also handling brackets
     lexer.advance();
-    processExpression();
-    processPipeAfterCondition();
-    processBlock();
+    processExpression(ifStatement->condition);
+    processPipeAfterCondition(ifStatement->pipeIdentifier);
+    processBlock(ifStatement->thenStatements);
 
     //process else statement
     if (lexer.isMatching({ELSE_KW})) {
         lexer.advance();
-        processBlock();
+        processBlock(ifStatement->elseStatements);
     }
     //else epsilon
 }
 
-void Parser::processPipeAfterCondition() {
+void Parser::processPipeAfterCondition(std::string& pipeIdentifier) {
     if (lexer.isMatching({PIPE_SIGN})) {
         //for pipe
         lexer.advance();
@@ -99,76 +93,105 @@ void Parser::processPipeAfterCondition() {
         }
         //for id inside pipe
         lexer.advance();
+        pipeIdentifier = lexer.currentToken.value;
         if (!lexer.isMatching({PIPE_SIGN})) {
             throw std::logic_error("Expected 'PIPE_SIGN' after 'PIPE_SIGN'");
         }
         //for ending pipe sign
         lexer.advance();
+    }else {
+        //if there is no pipe, just return empty string
+        pipeIdentifier = "";
     }
 }
 
 
-void Parser::processWhileStatement() {
+void Parser::processWhileStatement(std::unique_ptr<WhileStatementASTNode>& whileStatement) {
     //processExpression is also handling brackets
     lexer.advance();
     //now process just expression
-    processExpression();
-    processPipeAfterCondition();
-    processBlock();
-    if (lexer.isMatching({ELSE_KW})) {
-        lexer.advance();
-        processBlock();
-    }
-    //else epsilon
+    processExpression(whileStatement->condition);
+    processPipeAfterCondition(whileStatement->pipeIdentifier);
+    //process body of the while statement
+    processBlock(whileStatement->whileStatements);
 }
 
-void Parser::processReturnStatement() {
+void Parser::processReturnStatement(std::unique_ptr<ReturnStatementASTNode>& returnStatement) {
     //returnTail
     if (lexer.isMatching({SEMICOLON})) {
         lexer.advance();
+        //if the return statement is just return; we assign null pointer
+        returnStatement->returnExpression = nullptr;
         return;
     }else {
         lexer.advance();
-        processExpression();
+        processExpression(returnStatement->returnExpression);
     }
 }
 
 
-void Parser::processStatementList() {
+void Parser::processStatementList(StatementsList& statementsList) {
     lexer.advance();
     if (includes({TokenTypeEnum::CONST_KW, TokenTypeEnum::VAR_KW}, lexer.currentToken.type)) {
-        processDeclarationStatement();
-        processStatementList();
+        auto declarationStatement = std::make_unique<DeclarationStatementASTNode>();
+        declarationStatement->isConstant = lexer.currentToken.type == TokenTypeEnum::CONST_KW;
+        //process the statement
+        processDeclarationStatement(declarationStatement);
+        //push into the list
+        statementsList.push_back(std::move(declarationStatement));
+        processStatementList(statementsList);
     }
     else if (lexer.currentToken.type == TokenTypeEnum::IDENTIFIER) {
-        processAssignOrCallStatement();
-        processStatementList();
+        if (lexer.isMatching({EQ})) {
+            auto assignStatement = std::make_unique<AssignStatementASTNode>();
+            //we are still on identifier so we will assign name
+            assignStatement->variableName = lexer.currentToken.value;
+            // We need to skip equal, so first advance will push you to EQ, and second will skip it to the expression
+            lexer.advance();
+            lexer.advance();
+            processExpression(assignStatement->expression);
+            statementsList.push_back(std::move(assignStatement));
+        }
+        else {
+            auto callStatement = std::make_unique<FunctionCallStatementASTNode>();
+            processExpression(callStatement->functionExpression);
+            statementsList.push_back(std::move(callStatement));
+        }
+        //recursively call again
+        processStatementList(statementsList);
     }
     else if (lexer.currentToken.type == TokenTypeEnum::IF_KW) {
-        processIfStatement();
-        processStatementList();
+        auto ifStatement = std::make_unique<IfStatementASTNode>();
+        processIfStatement(ifStatement);
+        //push into the list
+        statementsList.push_back(std::move(ifStatement));
+        processStatementList(statementsList);
     }
     else if (lexer.currentToken.type == TokenTypeEnum::WHILE_KW) {
-        processWhileStatement();
-        processStatementList();
+        auto whileStatement = std::make_unique<WhileStatementASTNode>();
+        //process statement
+        processWhileStatement(whileStatement);
+        //push into the list
+        statementsList.push_back(std::move(whileStatement));
+        //call again recursively
+        processStatementList(statementsList);
     }
     else if (lexer.currentToken.type == TokenTypeEnum::RETURN_KW) {
-        processReturnStatement();
-        processStatementList();
-    }
-    else if (lexer.currentToken.type == TokenTypeEnum::LEFT_CURLY_PAREN) {
-        lexer.returnToken(lexer.currentToken);
-        processBlock();
-        processStatementList();
+        auto returnStatement = std::make_unique<ReturnStatementASTNode>();
+        processReturnStatement(returnStatement);
+        //push into the list
+        statementsList.push_back(std::move(returnStatement));
+        //call again recursively
+        processStatementList(statementsList);
     }
     else {
         lexer.returnToken(lexer.currentToken);
     }
 }
 
-void Parser::processBlock() {
+void Parser::processBlock(StatementsList& statementsList) {
     lexer.expectToken({LEFT_CURLY_PAREN});
-    processStatementList();
+    processStatementList(statementsList);
     lexer.expectToken({RIGHT_CURLY_PAREN});
 }
 
@@ -202,7 +225,6 @@ void Parser::processFunctionList() {
     ParametersList parametersList;
     StatementsList statementsList;
 
-
     lexer.expectToken({PUB_KW});
     lexer.expectToken({FN_KW});
     lexer.expectToken({IDENTIFIER});
@@ -211,13 +233,17 @@ void Parser::processFunctionList() {
     processParameterList(parametersList);
     lexer.expectToken({RIGHT_PAREN});
     ValueType returnType = processReturnType();
-    processBlock();
+    processBlock(statementsList);
+    //Create function node in the main program node
+    programASTNode->functions.push_back(std::make_unique<FunctionASTNode>(
+        functionName,
+        returnType,
+        std::move(parametersList),
+        std::move(statementsList)
+    ));
 
-    // programASTNode->functions.push_back(std::make_unique<FunctionASTNode>(functionName,returnType, parametersList,statementsList ));
     // recursively call again
     processFunctionList();
-
-    return;
 }
 
 

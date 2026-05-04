@@ -19,4 +19,6 @@ add_executable(compiler main.cpp
         parser/abstract_syntax_tree/abstract_syntax_tree.cpp
         parser/abstract_syntax_tree/abstract_syntax_tree.h
         code_generator/code_generator.cpp
-        code_generator/code_generator.h)
+        code_generator/code_generator.h
+        semantic_analyser/semantic_analyser.cpp
+        semantic_analyser/semantic_analyser.h)

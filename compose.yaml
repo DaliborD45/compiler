@@ -1,0 +1,6 @@
+services:
+  compiler:
+    build: .
+    container_name: compiler_app
+    stdin_open: true
+    tty: true

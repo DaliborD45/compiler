@@ -1,17 +1,22 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 3.16)
 project(compiler)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(compiler main.cpp
         lexer/lexer.cpp
         lexer/lexer.h
-#        tests/lexer/tests.cpp
-#        tests/lexer/tests.h
         errors.h
         parser/parser.cpp
         parser/parser.h
         helpers/helpers.cpp
         helpers/helpers.h
         symtable/symtable.cpp
-        symtable/symtable.h)
+        symtable/symtable.h
+        parser/expression_parser/expression_parser.cpp
+        parser/expression_parser/expression_parser.h
+        parser/abstract_syntax_tree/abstract_syntax_tree.cpp
+        parser/abstract_syntax_tree/abstract_syntax_tree.h
+        code_generator/code_generator.cpp
+        code_generator/code_generator.h)

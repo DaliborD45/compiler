@@ -1,6 +1,6 @@
 #include "lexer.h"
 #include "../errors.h"
-
+#include "../helpers/helpers.h"
 #include <cctype>
 #include <iostream>
 #include <string>
@@ -12,9 +12,39 @@ Lexer::Lexer(std::istream& in) : input(in) {}
 
 void Lexer::returnToken(Token& token) {
     if (unresolvedToken.has_value()) {
-        throw std::runtime_error("you cannot return token without getToken function");
+        throw std::runtime_error("You cannot return token without getToken function");
     }
     unresolvedToken = token;
+}
+
+void Lexer::advance() {
+   getToken(currentToken);
+}
+
+bool Lexer::isMatching(const std::vector<TokenTypeEnum>& typeArray, bool shouldReturnTokenBack){
+    Token token;
+    getToken(token);
+    bool is_matching = false;
+    if (includes(typeArray, token.type)) {
+        is_matching = true;
+    }
+    if (shouldReturnTokenBack) {
+        returnToken(token);
+    }
+    return is_matching;
+}
+
+
+void Lexer::expectToken(const std::vector<TokenTypeEnum>& typeArray) {
+    advance();
+    if (includes(typeArray, currentToken.type)) {
+        return;
+    }else {
+        // Here we are mixing stdout with stderr, mby refactor
+        printTokenObject(currentToken);
+        printVector(typeArray);
+        throw std::runtime_error("Program expected tokens above, but got " + getTokenTypeName(currentToken.type) + " instead");
+    }
 }
 
 int Lexer::getToken(Token& tokenAddress)
@@ -24,178 +54,158 @@ int Lexer::getToken(Token& tokenAddress)
         unresolvedToken = std::nullopt;
         return 0;
     }
-
     skipWhitespaceAndComments();
 
-    int character = peekCharacterFromInput();
-
-    if (character == EOF)
-    {
-        tokenAddress = createToken(EOF_KW, "");
-        return 0;
-    }
-
-    character = getCharacterFromInput();
+    const int character = getCharacterFromInput();
 
     switch (character)
     {
-    case ':':
-        tokenAddress = createToken(COLON, ":");
-        return 0;
+        case EOF:
+            tokenAddress = createToken(EOF_KW, "");
+            return 0;
 
-    case ',':
-        tokenAddress = createToken(COMMA, ",");
-        return 0;
+        case ':':
+            tokenAddress = createToken(COLON, ":");
+            return 0;
 
-    case ';':
-        tokenAddress = createToken(SEMICOLON, ";");
-        return 0;
+        case ',':
+            tokenAddress = createToken(COMMA, ",");
+            return 0;
 
-    case '.':
-        tokenAddress = createToken(DOT, ".");
-        return 0;
+        case ';':
+            tokenAddress = createToken(SEMICOLON, ";");
+            return 0;
 
-    case '?':
-        tokenAddress = createToken(QUESTION_MARK, "?");
-        return 0;
+        case '.':
+            tokenAddress = createToken(DOT, ".");
+            return 0;
 
-    case '+':
-        tokenAddress = createToken(PLUS, "+");
-        return 0;
+        case '?':
+            tokenAddress = createToken(QUESTION_MARK, "?");
+            return 0;
 
-    case '*':
-        tokenAddress = createToken(STAR, "*");
-        return 0;
+        case '+':
+            tokenAddress = createToken(PLUS, "+");
+            return 0;
 
-    case '-':
-        tokenAddress = createToken(MINUS, "-");
-        return 0;
+        case '*':
+            tokenAddress = createToken(STAR, "*");
+            return 0;
 
-    case '%':
-        tokenAddress = createToken(PERCENT, "%");
-        return 0;
+        case '-':
+            tokenAddress = createToken(MINUS, "-");
+            return 0;
 
-    case '(':
-        tokenAddress = createToken(LEFT_PAREN, "(");
-        return 0;
+        case '%':
+            tokenAddress = createToken(PERCENT, "%");
+            return 0;
 
-    case ')':
-        tokenAddress = createToken(RIGHT_PAREN, ")");
-        return 0;
+        case '(':
+            tokenAddress = createToken(LEFT_PAREN, "(");
+            return 0;
 
-    case '{':
-        tokenAddress = createToken(LEFT_CURLY_PAREN, "{");
-        return 0;
+        case ')':
+            tokenAddress = createToken(RIGHT_PAREN, ")");
+            return 0;
 
-    case '}':
-        tokenAddress = createToken(RIGHT_CURLY_PAREN, "}");
-        return 0;
+        case '{':
+            tokenAddress = createToken(LEFT_CURLY_PAREN, "{");
+            return 0;
 
-    case '[':
-        tokenAddress = createToken(LEFT_SQUARE_PAREN, "[");
-        return 0;
+        case '}':
+            tokenAddress = createToken(RIGHT_CURLY_PAREN, "}");
+            return 0;
 
-    case ']':
-        tokenAddress = createToken(RIGHT_SQUARE_PAREN, "]");
-        return 0;
+        //TODO: here we have to also make sure we return u8_kw as whole
+        case '[':
+            tokenAddress = createToken(LEFT_SQUARE_PAREN, "[");
+            return 0;
 
-    case '|':
-        tokenAddress = createToken(PIPE_SIGN, "|");
-        return 0;
+        case ']':
+            tokenAddress = createToken(RIGHT_SQUARE_PAREN, "]");
+            return 0;
 
-    case '/':
-        tokenAddress = createToken(SLASH, "/");
-        return 0;
+        case '|':
+            tokenAddress = createToken(PIPE_SIGN, "|");
+            return 0;
 
-    case '=':
-        if (peekCharacterFromInput() == '=')
-        {
-            getCharacterFromInput();
-            tokenAddress = createToken(DOUBLE_EQ, "==");
-        }
-        else
-        {
-            tokenAddress = createToken(EQ, "=");
-        }
-        return 0;
+        case '/':
+            tokenAddress = createToken(SLASH, "/");
+            return 0;
 
-    case '!':
-        if (peekCharacterFromInput() == '=')
-        {
-            getCharacterFromInput();
-            tokenAddress = createToken(NOT_EQ, "!=");
-        }
-        else
-        {
-            tokenAddress = createToken(EXCLAMATION, "!");
-        }
-        return 0;
-
-    case '>':
-        if (peekCharacterFromInput() == '=')
-        {
-            getCharacterFromInput();
-            tokenAddress = createToken(GREATER_EQ_THAN_SIGN, ">=");
-        }
-        else
-        {
-            tokenAddress = createToken(GREATER_THAN_SIGN, ">");
-        }
-        return 0;
-
-    case '<':
-        if (peekCharacterFromInput() == '=')
-        {
-            getCharacterFromInput();
-            tokenAddress = createToken(LESS_EQ_THAN_SIGN, "<=");
-        }
-        else
-        {
-            tokenAddress = createToken(LESS_THAN_SIGN, "<");
-        }
-        return 0;
-
-    case '@':
-    {
-        if (peekCharacterFromInput() == 'i')
-        {
-            int first = getCharacterFromInput();
-            std::string identifier = handleIdentifier(first);
-
-            if (identifier == "import")
+        case '=':
+            if (peekCharacterFromInput() == '=')
             {
-                tokenAddress = createToken(AT_IMPORT, "@import");
-                return 0;
+                getCharacterFromInput();
+                tokenAddress = createToken(DOUBLE_EQ, "==");
+            }
+            else
+            {
+                tokenAddress = createToken(EQ, "=");
+            }
+            return 0;
+
+        case '!':
+            if (peekCharacterFromInput() == '=')
+            {
+                getCharacterFromInput();
+                tokenAddress = createToken(NOT_EQ, "!=");
+            }
+            else
+            {
+                tokenAddress = createToken(EXCLAMATION, "!");
+            }
+            return 0;
+
+        case '>':
+            if (peekCharacterFromInput() == '=')
+            {
+                getCharacterFromInput();
+                tokenAddress = createToken(GREATER_EQ_THAN_SIGN, ">=");
+            }
+            else
+            {
+                tokenAddress = createToken(GREATER_THAN_SIGN, ">");
+            }
+            return 0;
+
+        case '<':
+            if (peekCharacterFromInput() == '=')
+            {
+                getCharacterFromInput();
+                tokenAddress = createToken(LESS_EQ_THAN_SIGN, "<=");
+            }
+            else
+            {
+                tokenAddress = createToken(LESS_THAN_SIGN, "<");
+            }
+            return 0;
+
+        case '@':
+        {
+            if (peekCharacterFromInput() == 'i')
+            {
+                int first = getCharacterFromInput();
+                std::string identifier = handleIdentifier(first);
+
+                if (identifier == "import")
+                {
+                    tokenAddress = createToken(AT_IMPORT, "@import");
+                    return 0;
+                }
+
+                LEXER_ERROR_CODE = 3;
+                return LEXER_ERR;
             }
 
-            LEXER_ERROR_CODE = 3;
-            return LEXER_ERR;
+            tokenAddress = createToken(AT, "@");
+            return 0;
         }
 
-        tokenAddress = createToken(AT, "@");
-        return 0;
-    }
-
-    case '"':
-    {
-        try {
-            std::string value = handleString();
-            tokenAddress = createToken(STRING, value);
-        } catch (...) {
-            LEXER_ERROR_CODE = 1;
-            return LEXER_ERR;
-        }
-        return 0;
-    }
-
-    case '\\':
-    {
-        if (peekCharacterFromInput() == '\\')
+        case '"':
         {
-            getCharacterFromInput(); // consume second '\'
-
             try {
-                std::string value = handleMultilineString();
+                std::string value = handleString();
                 tokenAddress = createToken(STRING, value);
             } catch (...) {
                 LEXER_ERROR_CODE = 1;
@@ -204,12 +214,28 @@ int Lexer::getToken(Token& tokenAddress)
             return 0;
         }
 
-        LEXER_ERROR_CODE = 1;
-        return LEXER_ERR;
-    }
+        case '\\':
+        {
+            if (peekCharacterFromInput() == '\\')
+            {
+                getCharacterFromInput(); // consume second '\'
 
-    default:
-        break;
+                try {
+                    std::string value = handleMultilineString();
+                    tokenAddress = createToken(STRING, value);
+                } catch (...) {
+                    LEXER_ERROR_CODE = 1;
+                    return LEXER_ERR;
+                }
+                return 0;
+            }
+
+            LEXER_ERROR_CODE = 1;
+            return LEXER_ERR;
+        }
+
+        default:
+            break;
     }
 
     if (isIdentifierStart(character))
@@ -336,7 +362,6 @@ TokenTypeEnum Lexer::keywordCheck(const std::string& identifier)
         {"void", VOID_KW},
         {"while", WHILE_KW},
         {"return", RETURN_KW},
-        {"ifj", IFJ_KW}
     };
 
     auto it = keywords.find(identifier);

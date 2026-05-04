@@ -11,8 +11,6 @@
  * INFIX: operator is between operands (*, /, ., (,)
  * PREFIX: operator is in front of operand (-5, +4)
  */
-
-
 int getPrecedence(const TokenTypeEnum type) {
     switch (type) {
         case DOT:
@@ -34,28 +32,32 @@ int getPrecedence(const TokenTypeEnum type) {
         default:     return 0;
     }
 }
-std::vector<TokenTypeEnum> operators = {PLUS, MINUS, STAR, SLASH};
 
-
-void ExpressionParser::nud(Token token) {
+Expression ExpressionParser::nud(Token token) {
     switch (token.type) {
         case NUMBER:
+            return std::make_unique<LiteralASTNode>(NUMBER, token.value);
         case STRING:
+            return std::make_unique<LiteralASTNode>(STRING, token.value);
         case F64_KW:
+            return std::make_unique<LiteralASTNode>(F64_KW, token.value);
         case I32_KW:
+            return std::make_unique<LiteralASTNode>(I32_KW, token.value);
         case FLOAT:
+            return std::make_unique<LiteralASTNode>(FLOAT, token.value);
         case IDENTIFIER:
+            return std::make_unique<LiteralASTNode>(IDENTIFIER, token.value);
         case NULL_KW:
-            break;
+            return std::make_unique<LiteralASTNode>(NULL_KW, token.value);
         case MINUS:
-            parseExpression(25);
-            break;
-        case LEFT_PAREN:
-            parseExpression(0);
+            return std::make_unique<UnaryExpressionASTNode>(MINUS, parseExpression(25));
+        case LEFT_PAREN: {
+            auto expr = parseExpression(0);
             if (lexer.currentToken.type != RIGHT_PAREN) {
                 throw std::runtime_error("The ending right paren is missing");
             }
-            break;
+            return expr;
+        }
         default:
             throw std::runtime_error("Unexpected token as nud " + getTokenTypeName(token.type));
     }
@@ -63,7 +65,7 @@ void ExpressionParser::nud(Token token) {
 
 
 
-void ExpressionParser::parseInfix(Token opToken) {
+Expression ExpressionParser::parseInfix(Expression left,Token opToken) {
     switch (opToken.type) {
         case PLUS:
         case MINUS:
@@ -74,22 +76,24 @@ void ExpressionParser::parseInfix(Token opToken) {
         case GREATER_EQ_THAN_SIGN:
         case LESS_EQ_THAN_SIGN:
         case DOUBLE_EQ:
-        case NOT_EQ:
-            parseExpression(getPrecedence(opToken.type));
-            break;
+        case NOT_EQ: {
+            auto right = parseExpression(getPrecedence(opToken.type));
 
-        case DOT:
+            return std::make_unique<BinaryExpressionASTNode>(opToken.type, std::move(left), std::move(right));
+        }
+        case DOT: {
             if (lexer.currentToken.type != IDENTIFIER) {
                 throw std::runtime_error("Should be identifier after dot");
             }
+            std::string attributeName = lexer.currentToken.value;
             lexer.advance();
-            break;
-
-        case LEFT_PAREN:
+            return std::make_unique<MemberAccessExpressionASTNode>(std::move(left),attributeName);
+        }
+        case LEFT_PAREN: {
+            std::vector<Expression> args;
             if (lexer.currentToken.type != RIGHT_PAREN) {
                 do {
-                    parseExpression(0);
-
+                    args.push_back(parseExpression(0));
                     if (lexer.currentToken.type == COMMA) {
                         lexer.advance();
                     } else {
@@ -98,8 +102,8 @@ void ExpressionParser::parseInfix(Token opToken) {
                 } while (true);
             }
             lexer.advance();
-            break;
-
+            return std::make_unique<CallExpressionASTNode>(std::move(left), std::move(args));
+        }
         default:
             throw std::runtime_error("Unknown infix operator");
     }
@@ -111,14 +115,16 @@ void ExpressionParser::parseInfix(Token opToken) {
 /**
  * Expression parser implementing pratt parsing algorithm
  */
-void ExpressionParser::parseExpression(int precedence = 0) {
+Expression ExpressionParser::parseExpression(int precedence = 0) {
     Token tokenToProcess = lexer.currentToken;
     lexer.advance();
-    nud(tokenToProcess);
+    auto left = nud(tokenToProcess);
 
     while (precedence < getPrecedence(lexer.currentToken.type)) {
         const Token opToken = lexer.currentToken;
         lexer.advance();
-        parseInfix(opToken);
+        left = parseInfix(std::move(left),opToken);
     }
+
+    return left;
 }

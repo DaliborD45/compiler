@@ -9,7 +9,7 @@
 
 
 void Parser::processExpression(Expression& expression) {
-    expressionParser.parseExpression(0);
+    expression = expressionParser.parseExpression(0);
 }
 
 void Parser::processImport() {

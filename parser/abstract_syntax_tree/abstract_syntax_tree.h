@@ -38,47 +38,47 @@ struct ValueType {
 class ExpressionASTNode : public ASTNode {
 public:
     using ASTNode::ASTNode;
+
+    //virtual destructor to avoid memory leaks
+    ~ExpressionASTNode() override = default;
 };
 using Expression = std::unique_ptr<ExpressionASTNode>;
 
-/**
- * Leaf node for building expression tree
- */
-class IntegerLiteralASTNode : public ExpressionASTNode {
-    public:
-        int value;
-    IntegerLiteralASTNode(int value)
-    : ExpressionASTNode(),value(value) {}
-};
-
-/**
- * Leaf node for string
- */
-class StringLiteralASTNode : public ExpressionASTNode {
-  public:
-    std::string value;
-    StringLiteralASTNode(std::string value): ExpressionASTNode(),value(std::move(value)) {}
-};
-
-/**
- * Leaf node for handling identifiers
- */
-class IdentifierASTNode : public ExpressionASTNode {
+class LiteralASTNode : public ExpressionASTNode {
 public:
-    std::string name;
-    IdentifierASTNode(std::string name): ExpressionASTNode(),name(std::move(name)) {}
+    TokenTypeEnum tokenType;
+    std::string value;
+    LiteralASTNode(TokenTypeEnum tokenType, std::string value): ExpressionASTNode(), tokenType(tokenType), value(value) {}
 };
+class UnaryExpressionASTNode : public ExpressionASTNode {
+    public:
+    TokenTypeEnum operatorType;
+    std::unique_ptr<ExpressionASTNode> operand;
+
+    UnaryExpressionASTNode(TokenTypeEnum operatorType, std::unique_ptr<ExpressionASTNode> operand)
+    : ExpressionASTNode(),operatorType(operatorType),operand(std::move(operand)) {}
+};
+
 
 /**
  * Node for handling aritmetic expressions
  */
-class OperatorASTNode : public ExpressionASTNode {
+class BinaryExpressionASTNode : public ExpressionASTNode {
 public:
     TokenTypeEnum operatorType;
-    std::unique_ptr<ExpressionASTNode> left;
-    std::unique_ptr<ExpressionASTNode> right;
-    OperatorASTNode(TokenTypeEnum operatorType, std::unique_ptr<ExpressionASTNode> left, std::unique_ptr<ExpressionASTNode> right)
+    Expression left;
+    Expression right;
+    BinaryExpressionASTNode(TokenTypeEnum operatorType, Expression left, Expression right)
     : ExpressionASTNode(),operatorType(operatorType),left(std::move(left)),right(std::move(right)) {}
+};
+
+class MemberAccessExpressionASTNode : public ExpressionASTNode {
+public:
+    Expression object;
+    std::string memberName;
+
+    MemberAccessExpressionASTNode(Expression object, std::string memberName)
+    : ExpressionASTNode(),object(std::move(object)),memberName(memberName) {}
 };
 
 /**
@@ -86,11 +86,11 @@ public:
  */
 class CallExpressionASTNode : public ExpressionASTNode {
 public:
-    std::string functionName;
+    Expression left;
     std::vector<std::unique_ptr<ExpressionASTNode>> arguments;
 
-    CallExpressionASTNode(std::string functionName, std::vector<std::unique_ptr<ExpressionASTNode>> arguments)
-    : ExpressionASTNode(),functionName(std::move(functionName)),arguments(std::move(arguments)) {}
+    CallExpressionASTNode(Expression left, std::vector<std::unique_ptr<ExpressionASTNode>> arguments)
+    : ExpressionASTNode(),left(std::move(left)),arguments(std::move(arguments)) {}
 };
 
 /**

@@ -5,6 +5,7 @@
 #include "parser.h"
 #include "../helpers/helpers.h"
 #include "../lexer/lexer.h"
+#include "abstract_syntax_tree/abstract_syntax_tree.h"
 
 
 void Parser::processExpression() {
@@ -15,27 +16,36 @@ void Parser::processImport() {
     //for now, we demand the import of the core library for every program
     lexer.expectToken({CONST_KW});
     lexer.expectToken({IDENTIFIER});
+    std::string identifierName = lexer.currentToken.value;
     lexer.expectToken({EQ});
     lexer.expectToken({AT_IMPORT});
     lexer.expectToken({LEFT_PAREN});
     lexer.expectToken({STRING});
+    std::string importPath = lexer.currentToken.value;
     lexer.expectToken({RIGHT_PAREN});
     lexer.expectToken({SEMICOLON});
+
+    //Create node for AST
+    programASTNode->imports.push_back(std::make_unique<ImportASTNode>(identifierName, importPath));
+    return;
 }
 
 void Parser::processEndOfFile() {
    lexer.expectToken({EOF_KW});
 }
 
-void Parser::processReturnType() {
+ValueType Parser::processReturnType() {
+    ValueType returnType = {.isOptional = false,};
     //parse optional type
     if (lexer.isMatching({QUESTION_MARK})) {
         lexer.advance();
+        returnType.isOptional = true;
     }
-    //parse base type
-    if (lexer.isMatching(baseTypesVector)) {
-        lexer.advance();
-    }
+
+    lexer.expectToken(baseTypesVector);
+    returnType.type = lexer.currentToken.type;
+
+    return returnType;
 }
 
 
@@ -164,21 +174,24 @@ void Parser::processBlock() {
 
 
 
-void Parser::processParameter() {
+void Parser::processParameter(ParametersList& parametersList) {
     lexer.expectToken({IDENTIFIER});
+    std::string identifier = lexer.currentToken.value;
     lexer.expectToken({COLON});
     lexer.expectToken(baseTypesVector);
+    ValueType paramType =  {.type = lexer.currentToken.type,.isOptional = false };
 
+    parametersList.push_back(std::make_unique<ParameterNode>(identifier, paramType));
     // parametersTail
     if (lexer.isMatching({COMMA})) {
         lexer.advance();
-        processParameter();
+        processParameter(parametersList);
     }
 }
 
-void Parser::processParameterList() {
+void Parser::processParameterList(ParametersList& parametersList) {
     if (lexer.isMatching({IDENTIFIER})) {
-        processParameter();
+        processParameter(parametersList);
     }
 }
 
@@ -186,17 +199,25 @@ void Parser::processFunctionList() {
     if (!lexer.isMatching({PUB_KW})) {
         return;
     }
+    ParametersList parametersList;
+    StatementsList statementsList;
+
+
     lexer.expectToken({PUB_KW});
     lexer.expectToken({FN_KW});
     lexer.expectToken({IDENTIFIER});
+    std::string functionName = lexer.currentToken.value;
     lexer.expectToken({LEFT_PAREN});
-    processParameterList();
+    processParameterList(parametersList);
     lexer.expectToken({RIGHT_PAREN});
-    processReturnType();
+    ValueType returnType = processReturnType();
     processBlock();
 
+    // programASTNode->functions.push_back(std::make_unique<FunctionASTNode>(functionName,returnType, parametersList,statementsList ));
     // recursively call again
     processFunctionList();
+
+    return;
 }
 
 

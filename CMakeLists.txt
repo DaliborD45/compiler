@@ -15,4 +15,8 @@ add_executable(compiler main.cpp
         symtable/symtable.cpp
         symtable/symtable.h
         parser/expression_parser/expression_parser.cpp
-        parser/expression_parser/expression_parser.h)
+        parser/expression_parser/expression_parser.h
+        parser/abstract_syntax_tree/abstract_syntax_tree.cpp
+        parser/abstract_syntax_tree/abstract_syntax_tree.h
+        code_generator/code_generator.cpp
+        code_generator/code_generator.h)

@@ -7,6 +7,7 @@
 #include "../lexer/lexer.h"
 #include <vector>
 
+#include "abstract_syntax_tree/abstract_syntax_tree.h"
 #include "expression_parser/expression_parser.h"
 
 class Parser {
@@ -14,7 +15,7 @@ class Parser {
         Lexer lexer;
         ExpressionParser expressionParser;
         explicit Parser(Lexer& lexer) : lexer(lexer), expressionParser(this->lexer) {}
-
+        std::unique_ptr<ProgramASTNode> programASTNode = std::make_unique<ProgramASTNode>();
         void createTree();
 
     private:
@@ -31,7 +32,7 @@ class Parser {
         void processImport();
         void processFunctionList();
         void processEndOfFile();
-        void processReturnType();
+        ValueType processReturnType();
         void processBlock();
         void processIfStatement();
         void processStatementList();
@@ -39,8 +40,8 @@ class Parser {
         void processDeclarationStatement();
         void processAssignOrCallStatement();
         void processReturnStatement();
-        void processParameterList();
-        void processParameter();
+        void processParameterList(std::vector<std::unique_ptr<ParameterNode>>& parametersList);
+        void processParameter(std::vector<std::unique_ptr<ParameterNode>>& parametersList);
         void processPipeAfterCondition();
 
 };

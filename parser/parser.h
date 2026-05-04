@@ -24,7 +24,7 @@ class Parser {
          * so the implementation is not included within the LL grammar
          * Algorithm is derivated from precedence table
          */
-        void processExpression();
+        void processExpression(Expression& expression);
         /**
          * Definitions of all functions, that are
          * architected based on LL grammar
@@ -33,16 +33,15 @@ class Parser {
         void processFunctionList();
         void processEndOfFile();
         ValueType processReturnType();
-        void processBlock();
-        void processIfStatement();
-        void processStatementList();
-        void processWhileStatement();
-        void processDeclarationStatement();
-        void processAssignOrCallStatement();
-        void processReturnStatement();
+        void processBlock(StatementsList& statementsList);
+        void processIfStatement(std::unique_ptr<IfStatementASTNode>& ifStatement);
+        void processStatementList(StatementsList& statementsList);
+        void processWhileStatement(std::unique_ptr<WhileStatementASTNode>& whileStatement);
+        void processDeclarationStatement(std::unique_ptr<DeclarationStatementASTNode>& declarationStatement);
+        void processReturnStatement(std::unique_ptr<ReturnStatementASTNode>& returnStatement);
         void processParameterList(std::vector<std::unique_ptr<ParameterNode>>& parametersList);
         void processParameter(std::vector<std::unique_ptr<ParameterNode>>& parametersList);
-        void processPipeAfterCondition();
+        void processPipeAfterCondition(std::string& pipeIdentifier);
 
 };
 #endif //COMPILER_PARSER_H

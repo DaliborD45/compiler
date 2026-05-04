@@ -39,6 +39,7 @@ class ExpressionASTNode : public ASTNode {
 public:
     using ASTNode::ASTNode;
 };
+using Expression = std::unique_ptr<ExpressionASTNode>;
 
 /**
  * Leaf node for building expression tree
@@ -102,25 +103,41 @@ public:
 };
 //Type
 using StatementsList = std::vector<std::unique_ptr<StatementASTNode>>;
+using Statement = std::unique_ptr<StatementASTNode>;
 
+
+/**
+ * Return statement, altough this could be taken as an expression
+ * It's much better to treat it as a statement, becuase ich function can have
+ * multiple return paths
+ */
+class ReturnStatementASTNode : public StatementASTNode {
+public:
+    Expression returnExpression;
+
+    ReturnStatementASTNode() = default;
+    // ReturnStatementASTNode(Expression returnExpression):
+    // StatementASTNode(),returnExpression(std::move(returnExpression)) {}
+};
 
 /**
  * Node for declaration
  */
-class DeclarationASTNode : public StatementASTNode {
+class DeclarationStatementASTNode : public StatementASTNode {
 public:
     std::string variableName;
     bool isConstant;
     TokenTypeEnum variableType;
     std::unique_ptr<ExpressionASTNode> expression;
 
-    DeclarationASTNode(std::string name, bool isConst, std::unique_ptr<ExpressionASTNode> init, TokenTypeEnum type)
-          : StatementASTNode(),
-            variableName(std::move(name)),
-            isConstant(isConst),
-            expression(std::move(init)),
-            variableType(type)
-    {}
+    DeclarationStatementASTNode() = default;
+    // DeclarationStatementASTNode(std::string name, bool isConst, std::unique_ptr<ExpressionASTNode> init, TokenTypeEnum type)
+    //       : StatementASTNode(),
+    //         variableName(std::move(name)),
+    //         isConstant(isConst),
+    //         expression(std::move(init)),
+    //         variableType(type)
+    // {}
 };
 
 /**
@@ -131,10 +148,22 @@ public:
     std::string variableName;
     std::unique_ptr<ExpressionASTNode> expression;
 
-    AssignStatementASTNode(std::string variableName, std::unique_ptr<ExpressionASTNode> expression)
-        : StatementASTNode(),variableName(std::move(variableName)), expression(std::move(expression)) {}
+    AssignStatementASTNode() = default;
+    // AssignStatementASTNode(std::string variableName, std::unique_ptr<ExpressionASTNode> expression)
+    //     : StatementASTNode(),variableName(std::move(variableName)), expression(std::move(expression)) {}
 };
 
+/**
+ * This type of statement can occur when there is just function
+ * call on the line
+ */
+class FunctionCallStatementASTNode : public StatementASTNode {
+public:
+    Expression functionExpression;
+    FunctionCallStatementASTNode() = default;
+    // FunctionCallStatementASTNode(Expression functionExpression):
+    // StatementASTNode(),functionExpression(std::move(functionExpression)) {}
+};
 
 /**
  * Node for handling if statements
@@ -145,9 +174,12 @@ public:
     std::unique_ptr<ExpressionASTNode> condition;
     StatementsList thenStatements;
     StatementsList elseStatements;
+    std::string pipeIdentifier;
 
-    IfStatementASTNode(std::unique_ptr<ExpressionASTNode> condition,std::vector<std::unique_ptr<StatementASTNode>> thenStatements,std::vector<std::unique_ptr<StatementASTNode>> elseStatements)
-        : StatementASTNode(),condition(std::move(condition)), thenStatements(std::move(thenStatements)), elseStatements(std::move(elseStatements)) {}
+    IfStatementASTNode() = default;
+    // IfStatementASTNode(std::unique_ptr<ExpressionASTNode> condition,std::vector<std::unique_ptr<StatementASTNode>> thenStatements,std::vector<std::unique_ptr<StatementASTNode>> elseStatements)
+    //     : StatementASTNode(),condition(std::move(condition)), thenStatements(std::move(thenStatements)), elseStatements(std::move(elseStatements)) {}
+
 };
 
 /**
@@ -157,9 +189,11 @@ class WhileStatementASTNode : public StatementASTNode {
 public:
     std::unique_ptr<ExpressionASTNode> condition;
     StatementsList whileStatements;
+    std::string pipeIdentifier;
 
-    WhileStatementASTNode(std::unique_ptr<ExpressionASTNode> condition,std::vector<std::unique_ptr<StatementASTNode>> whileStatements)
-    : StatementASTNode(),condition(std::move(condition)), whileStatements(std::move(whileStatements)) {}
+    WhileStatementASTNode() = default;
+    // WhileStatementASTNode(std::unique_ptr<ExpressionASTNode> condition,std::vector<std::unique_ptr<StatementASTNode>> whileStatements)
+    // : StatementASTNode(),condition(std::move(condition)), whileStatements(std::move(whileStatements)) {}
 };
 
 /**
@@ -205,20 +239,17 @@ public:
     ValueType returnType;
     ParametersList parameters;
     StatementsList statements;
-    std::unique_ptr<ExpressionASTNode> returnValue;
 
     FunctionASTNode(
         std::string functionName,
         ValueType returnType,
         ParametersList parameters,
-        StatementsList statements,
-        std::unique_ptr<ExpressionASTNode> returnValue
+        StatementsList statements
     ) : ASTNode(),
         functionName(std::move(functionName)),
         returnType(returnType),
         parameters(std::move(parameters)),
-        statements(std::move(statements)),
-        returnValue(std::move(returnValue))
+        statements(std::move(statements))
     {}
 };
 
